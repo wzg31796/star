@@ -19,8 +19,13 @@ dump_conf(Conf *conf)
 	printf("*             star conf             *\n");
 	printf("*************************************\n");
 	printf("thread number:  %d\n", conf->nthread);
-	printf("main   thread:  %s\n", conf->main);
-	printf("func   thread:  %s\n", conf->func);
+	printf("main   thread:  '%s'\n", conf->main);
+	printf("func   thread:  '%s'\n", conf->func);
+	printf("\n");
+	printf("server       :  '%s'\n", conf->server);
+	printf("ip           :  '%s'\n", conf->ip);
+	printf("port         :  %d\n", conf->port);
+	printf("maxclient    :  %d\n", conf->maxclient);
 	printf("\n");
 }
 

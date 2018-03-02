@@ -4,22 +4,30 @@
 #include <stdbool.h>
 #include <stdatomic.h>
 
+#include "star.h"
 #include "star_queue.h"
 
 #define CHECKNULL(x) ;if(x == NULL) { perror("Malloc failed."); exit(1); }
 
 #define LQUEUE 128
-#define LDEFAULT_SLOT 128
 
 #define EMPTY 0
 #define FILLED 1
 
-struct _message{
-	_Atomic char flag;		// 0 mean empty, 1 mean has data
-	int sz;
-	lua_State *L;
-	char *cmd;
-	void *arg;
+// struct _message{
+// 	_Atomic char flag;		// 0 mean empty, 1 mean has data
+// 	int sz;
+// 	lua_State *L;
+// 	char *cmd;
+// 	void *arg;
+// };
+
+struct _message
+{
+	_Atomic char flag;
+	unsigned char type;
+	char *data;
+	uint32_t size;
 };
 
 struct _queue{
@@ -42,9 +50,9 @@ q_initialize()
 	{
 		m 			 = malloc(sizeof(Message)) CHECKNULL(m)
 		m->flag 	 = EMPTY;
-		m->cmd 		 = NULL;
-		m->arg 	 	 = NULL;
-		m->sz 		 = 0;
+		m->type  	 = 0;
+		m->data 	 = NULL;
+		m->size 	 = 0;
 		q->data[i] = m;
 	}
 
@@ -53,7 +61,7 @@ q_initialize()
 
 
 bool
-qpush(Queue *queue, lua_State *L, char *cmd, void *arg, int length)
+qpush(Queue *queue, unsigned char type, char *data, uint32_t size)
 {
 	int index;					
 	int count = queue->writeindex - queue->readindex + 1; //2047	-	0    2048     2047 时超载
@@ -70,10 +78,9 @@ qpush(Queue *queue, lua_State *L, char *cmd, void *arg, int length)
 	index = index%LQUEUE;
 	
 	Message *m = queue->data[index];
-	m->L 	= L;
-	m->cmd  = cmd;
-	m->arg  = arg;
-	m->sz   = length;
+	m->type = type;
+	m->data = data;
+	m->size = size;
 	m->flag = FILLED;
 
 	return true;
@@ -81,7 +88,7 @@ qpush(Queue *queue, lua_State *L, char *cmd, void *arg, int length)
 
 
 bool
-qpop(Queue *queue, lua_State **L, char**cmd, void **arg ,int *length)
+qpop(Queue *queue, unsigned char *type, char **data, uint32_t *size)
 {
 	int index = queue->readindex % LQUEUE;
 
@@ -90,10 +97,9 @@ qpop(Queue *queue, lua_State **L, char**cmd, void **arg ,int *length)
 	if (m->flag == EMPTY) {
 		return false;
 	} else {
-		*L   = m->L;
-		*cmd = m->cmd;
-		*arg = m->arg;
-		*length = m->sz;
+		*type = m->type;
+		*data = m->data;
+		*size = m->size;
 		m->flag = EMPTY;
 		queue->readindex++;
 		return true;

@@ -1,6 +1,10 @@
-#include "star_main.h"
+#include "star.h"
+#include "star_tcp.h"
 
 Star *star;
+
+int SIZEINT;
+int SIZEPTR;
 
 
 Queue *
@@ -10,7 +14,7 @@ next_queue()
 	star->i++;
 	if (star->i == star->n)
 		star->i = 0;
-	q = star->proc[star->i]->queue;
+	q = star->func[star->i]->queue;
 	return q;
 }
 
@@ -23,11 +27,12 @@ new_star(Conf *conf)
 	s->n = conf->nthread;
 	s->i = -1;
 
+	s->server = 0;
 	s->main = new_proc();
 
 	for (int i = 0; i < s->n; ++i)
 	{
-		s->proc[i] = new_proc();
+		s->func[i] = new_proc();
 	}
 
 	return s;
@@ -36,17 +41,51 @@ new_star(Conf *conf)
 void
 free_star(Star *star)
 {
+	pthread_kill(star->server, SIGQUIT);
+
 	for (int i = 0; i < star->n; ++i)
 	{
-		free_proc(star->proc[i]);
+		free_proc(star->func[i]);
 	}
 
 	free_proc(star->main);
 
 	free_conf(star->conf);
 	free(star);
+	printf("free star\n");
 }
 
+void star_stop(int signo)
+{  
+    printf("star stop\n");
+    free_star(star);
+    exit(0);  
+}  
+
+
+static inline void 
+read_conf_str(lua_State *L, const char *key, char **p)
+{
+	const char *str;
+	char *newstr;
+	size_t sz;
+	lua_getglobal(L, key);
+	
+	str = luaL_checklstring(L, -1, &sz);
+	newstr = malloc(sz + 1);
+	strcpy(newstr, str);
+	*p = newstr;
+	lua_pop(L, 1);
+}
+
+static inline void 
+read_conf_int(lua_State *L, const char *key, int *p)
+{
+	lua_getglobal(L, key);
+	int n = (int)lua_tointeger(L, -1);
+	*p = n;
+	lua_pop(L, 1);
+}
 
 void
 read_conf(const char *file, Conf *conf)
@@ -58,7 +97,6 @@ read_conf(const char *file, Conf *conf)
 	 	fprintf(stderr, "Load conf error from %s: %s", file, lua_tostring(L, -1));
 	 	exit(1);
 	}
-
 	luaL_openlibs(L);
 
 	if (lua_pcall(L, 0, 0, 0) != 0) {
@@ -67,28 +105,14 @@ read_conf(const char *file, Conf *conf)
 		exit(1);
 	}
 
-	// thread number
-	lua_getglobal(L, "thread");
-	int n = (int)lua_tointeger(L, -1);
-	if (n == 0) {n = 4;}
-	conf->nthread = n;
-	lua_pop(L, 1);
+	read_conf_int(L, "thread", 		&conf->nthread);
+	read_conf_str(L, "main", 		&conf->main);
+	read_conf_str(L, "func", 		&conf->func);
 
-	// main thread
-	lua_getglobal(L, "main");
-	size_t sz;
-	const char * main1 = luaL_checklstring(L, -1, &sz);
-	char *main2 = malloc(sz + 1);
-	strcpy(main2, main1);
-	conf->main = main2;
-	lua_pop(L, 1);
-
-	// func thread
-	lua_getglobal(L, "func");
-	const char * func1 = luaL_checklstring(L, -1, &sz);
-	char *func2 = malloc(sz + 1);
-	strcpy(func2, func1);
-	conf->func = func2;
+	read_conf_str(L, "server", 		&conf->server);
+	read_conf_str(L, "ip", 			&conf->ip);
+	read_conf_int(L, "port", 		&conf->port);
+	read_conf_int(L, "maxclient", 	&conf->maxclient);
 
 	lua_close(L);
 }
@@ -97,12 +121,14 @@ read_conf(const char *file, Conf *conf)
 void
 star_run()
 {
-	// printf("run......\n");
+	tcp_thread_run();
+
 	for (int i = 0; i < star->n; ++i)
 	{
-		run_funcproc(star->proc[i], star->conf->func);
+		run_funcproc(star->func[i], star->conf->func);
 	}
 
+	// must last start main
 	run_mainproc(star->main, star->conf->main);
 }
 
@@ -116,6 +142,16 @@ start(Conf *conf)
 }
 
 
+void
+star_init()
+{
+	SIZEPTR = sizeof(void *);
+	SIZEINT = sizeof(int);
+
+	signal(SIGINT, star_stop);
+}
+
+
 int
 main(int argc, char const *argv[])
 {
@@ -123,6 +159,8 @@ main(int argc, char const *argv[])
 		fprintf(stderr, "usage: star main.lua\n");
 		return 1;
 	}
+
+	star_init();
 
 	Conf *conf = new_conf();
 	read_conf(argv[1], conf);

@@ -7,29 +7,86 @@
 #include <stdbool.h>
 #include <sys/time.h>
 
+#include "star.h"
 #include "lua_star.h"
-#include "star_main.h"
 #include "star_seri.h"
+#include "star_tcp.h"
 
 extern Star *star;
+
+extern int SIZEINT;
+extern int SIZEPTR;
+
+static int
+l_server(lua_State *L)
+{
+	luaL_checktype(L, 1, LUA_TTABLE);
+
+	lua_pushstring(L, "open");
+	lua_gettable(L, -2);
+	lua_setfield(L, LUA_REGISTRYINDEX, "socket_open");
+
+	lua_pushstring(L, "data");
+	lua_gettable(L, -2);
+	lua_setfield(L, LUA_REGISTRYINDEX, "socket_data");
+
+	lua_pushstring(L, "close");
+	lua_gettable(L, -2);
+	lua_setfield(L, LUA_REGISTRYINDEX, "socket_close");
+
+	lua_settop(L, 0);
+
+	return 0;
+}
 
 
 static inline void
 star_send(lua_State *L)
 {
-	int n = lua_gettop(L);
+	int proc;
+	const char *cmd;
 	void *arg = NULL;
 	int sz = 0;
+	Queue *q;
 
-	const char *cmd = luaL_checkstring(L, 1);
-	char *q_cmd = malloc(strlen(cmd) + 1);
-	strcpy(q_cmd, cmd);
+	int n = lua_gettop(L);
 
-	if (n > 1)
-		star_pack(L, &arg, &sz, 1);
+	// whata func thread's queue?
+	if (lua_type(L, 1) == LUA_TNUMBER) {
 
-	Queue *q = next_queue();
-	qpush(q, L, q_cmd, arg, sz);
+		proc = lua_tointeger(L, 1);
+		proc = proc%star->conf->nthread;
+		q = star->func[proc]->queue;
+
+		cmd = luaL_checkstring(L, 2);
+		if (n > 2)
+			star_pack(L, &arg, &sz, 2);
+	} else {
+
+		q = next_queue();
+		cmd = luaL_checkstring(L, 1);
+		if (n > 1)
+			star_pack(L, &arg, &sz, 1);
+	}
+	
+
+	//[L, arg, sz, cmd]
+	uint32_t size = SIZEPTR * 2 + SIZEINT + strlen(cmd) + 1;
+	char *buf = malloc(size);
+	char *ptr = buf;
+
+	memcpy(ptr, &L, SIZEPTR);
+	ptr += SIZEPTR;
+
+	memcpy(ptr, &arg, SIZEPTR);
+	ptr += SIZEPTR;
+
+	memcpy(ptr, &sz, SIZEINT);
+	ptr += SIZEINT;
+
+	strcpy(ptr, cmd);
+
+	qpush(q, STAR_CALL, buf, size);
 }
 
 
@@ -76,10 +133,20 @@ l_version(lua_State *L)
 }
 
 
+static int
+lua_mynext(lua_State *L) {
+  printf("called lua_mynext\n");
+  lua_pushnumber(L, 1);
+  lua_pushnumber(L, 2);
+  return lua_yield(L, 2);
+}
+
 int
 l_mode_core(lua_State* L)
 {
 	static const struct luaL_Reg l[] = {
+		{"next", lua_mynext},
+		{"server", l_server},
 		{"call", l_call},
 		{"send", l_send},
 		{"sleep", l_sleep},

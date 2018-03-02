@@ -11,7 +11,7 @@
 #include <assert.h>
 #include <string.h>
 
-#include "lua_seri.h"
+#include "star_seri.h"
 
 #define TYPE_NIL 0
 #define TYPE_BOOLEAN 1

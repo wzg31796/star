@@ -17,11 +17,11 @@ q_initialize();
 
 
 bool
-qpush(Queue *queue, lua_State *L, char *cmd, void *arg, int length);
+qpush(Queue *queue, unsigned char type, char *data, uint32_t size);
 
 
 bool
-qpop(Queue *queue, lua_State **L, char**cmd, void **arg, int *length);
+qpop(Queue *queue, unsigned char *type, char **data, uint32_t *size);
 
 
 void

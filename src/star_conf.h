@@ -3,9 +3,14 @@
 
 typedef struct
 {
+	int nthread;
 	char *main;
 	char *func;
-	int nthread;
+	
+	char *server;
+	char *ip;
+	int port;
+	int maxclient;
 } Conf;
 
 
