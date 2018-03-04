@@ -221,6 +221,13 @@ local function test_timer()
 		print("im timeout 3", os.time())
 		print("timer test ------------<")
 		print("")
+
+		-- start an tick , 最后一个参数为执行次数,  <=0 则会永远执行, 不填则默认为 1
+		local ti = 0
+		timer.timeout(1000, function ( )
+			ti = ti + 1
+			print("------->tick:", ti)
+		end, -1)
 	end)
 
 	print("create timer 1:", id1)
