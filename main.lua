@@ -131,7 +131,7 @@ function REQUEST:test()
 end
 
 
--- test sleep
+-- star.sleep 测试
 function REQUEST:sleep()
 	print("i will sleep 5s", os.time())
 	star.sleep(5000)
@@ -195,7 +195,7 @@ function REQUEST:xcall( )
 end
 
 
--- test timer
+-- 定时器功能测试
 local function test_timer()
 
 	print("")
@@ -232,6 +232,7 @@ local function test_timer()
 end
 
 
+-- 设置 sock 回调
 star.server{
 
 	open = function (fd, ip, port)
