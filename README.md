@@ -24,6 +24,6 @@ Run these:
 
 Star now uses lua 5.3.4
 
-## How To Use (Sorry, Only in Chinese now)
+## How To Use (Sorry, Only in China now)
 
 * contact my QQ: 707298413

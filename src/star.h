@@ -16,22 +16,28 @@
 
 #include "star_conf.h"
 #include "star_proc.h"
+#include "star_timer.h"
 
-#define STAR_VERSION 0.02
-/*
-	0.01：base
-	0.02: add tcp suport, abstract star_queue
-	will do:
-		add timer suport
-		add udp suport
-*/
+#define STAR_VERSION 0.03
 
-// #define STAR_DEBUG 0
-#define STAR_CALL 1
-#define STAR_RETURN 2
-#define STAR_REGTIMER 3
-#define STAR_TIMEOUT 4
-#define STAR_SOCKET 5
+
+#define STAR_DEBUG 0         // none <-> none  # Used in the next version
+
+#define STAR_SOCK_OPEN 1	 // main <- tcp/udp
+#define STAR_SOCK_DATA 2	 // main <- tcp/udp
+#define STAR_SOCK_CLOSE 3	 // main <- tcp/udp
+
+#define STAR_CALL 4			 // main -> func
+#define STAR_RETURN 5		 // main <- func 
+
+#define STAR_SLEEP 6		 // main -> timer
+#define STAR_WAKE 7			 // main <- timer
+#define STAR_TIMER_CREATE 8	 // main -> timer
+#define STAR_TIMER_CANCEL 9  // main -> timer
+#define STAR_TIMER_PAUSE 10  // main -> timer  # Used in the next version
+#define STAR_TIMER_RESUME 11 // main -> timer  # Used in the next version
+#define STAR_TIMEOUT 12		 // main <- timer
+
 
 
 typedef struct
@@ -40,6 +46,7 @@ typedef struct
 	int n;
 	int i;
 	pthread_t server;
+	Timer *timer;
 	Process *main;
 	Process *func[];
 } Star;

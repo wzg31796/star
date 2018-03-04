@@ -9,10 +9,12 @@ STAR = \
 	star_conf.c \
 	star_proc.c \
 	star_tcp.c \
+	star_timer.c \
 
 LUALIB = \
 	lua_star.c \
 	lua_sock.c \
+	lua_timer.c \
 
 star:
 	gcc $(CFLAGS) $(addprefix src/,$(STAR)) $(addprefix lib/,$(LUALIB)) -o star $(LINK)

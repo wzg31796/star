@@ -1,5 +1,17 @@
 --[[
 
+
+
+
+Star版本:
+	0.01：base
+	0.02: add tcp suport
+	0.03: add timer suport and star.sleep api
+	will do:
+		add udp suport
+		add star.xcall api  #并行调用多个star.call
+		...
+
 框架概述:
 	Self introduction:
 
@@ -17,16 +29,11 @@
 
 		因为它们都是多线程的, 最好用的 还是"单线程"
 
-		star 的设计，使得使用它就像 使用单线程一样简单, 只需要在 复杂算法 和 I/O 前面 加上star.call/send
+		star 的设计，使得使用它就像 使用单线程一样简单, 只需要在 复杂算法 和 I/O 前面
 
-		就能提升性能, 可以想象 辅助线程(func thread) 和 主线程 (main thread) 的任务量 并不能保证绝对公平
+		加上star.call/send 就能提升性能, Now just enjoy it.
+
 		
-		(由开发者决定, 预估), 所以 它的总体性能很难把握(我甚至能接受它比其他框架的性能低), 但是使用它
 
-		肯定是一种享受.
-
-	Will do:
-		
-		加入socket(现在已经支持tcp了)， timer到内核中去, 让它成为真正的 game-server.
 
 ]]

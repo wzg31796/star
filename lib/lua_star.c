@@ -109,9 +109,23 @@ l_send(lua_State *L)
 static int
 l_sleep(lua_State *L)
 {
-	double ti = luaL_checknumber(L, 1);
-	usleep(ti*1000);
-	return 0;
+	int ti = luaL_checkinteger(L, 1);
+
+	if (L == star->main->L) {
+		usleep(ti*1000);
+		return 0;
+	}
+
+	Queue *timer_queue = star->timer->queue;
+	char *data = malloc(SIZEPTR + SIZEINT);
+
+	//[L, delay]
+	memcpy(data, &L, SIZEPTR);
+	memcpy(data + SIZEPTR, &ti, SIZEINT);
+
+	qpush(timer_queue, STAR_SLEEP, data, SIZEPTR + SIZEINT);
+
+	return lua_yield(L, 0);
 }
 
 
@@ -133,19 +147,10 @@ l_version(lua_State *L)
 }
 
 
-static int
-lua_mynext(lua_State *L) {
-  printf("called lua_mynext\n");
-  lua_pushnumber(L, 1);
-  lua_pushnumber(L, 2);
-  return lua_yield(L, 2);
-}
-
 int
 l_mode_core(lua_State* L)
 {
 	static const struct luaL_Reg l[] = {
-		{"next", lua_mynext},
 		{"server", l_server},
 		{"call", l_call},
 		{"send", l_send},

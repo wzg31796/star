@@ -28,6 +28,7 @@ new_star(Conf *conf)
 	s->i = -1;
 
 	s->server = 0;
+	s->timer = timer_new();
 	s->main = new_proc();
 
 	for (int i = 0; i < s->n; ++i)
@@ -41,6 +42,9 @@ new_star(Conf *conf)
 void
 free_star(Star *star)
 {
+
+	timer_free(star->timer);
+	
 	pthread_kill(star->server, SIGQUIT);
 
 	for (int i = 0; i < star->n; ++i)
@@ -121,6 +125,7 @@ read_conf(const char *file, Conf *conf)
 void
 star_run()
 {
+	timer_thread_run(star->timer);
 	tcp_thread_run();
 
 	for (int i = 0; i < star->n; ++i)

@@ -10,6 +10,7 @@
 
 #include "lua_star.h"
 #include "lua_sock.h"
+#include "lua_timer.h"
 
 extern Star *star;
 extern int SIZEPTR;
@@ -41,36 +42,29 @@ lua_State * new_coroutine(lua_State *L)
 
 void resume_coroutine(lua_State *co, lua_State *L, int n)
 {
-	// printf(">> co1 %p size:%d\n", co, lua_gettop(co));
-
 	int r = lua_resume(co, NULL, n);
 
-	// printf("=================== resume over r: %d %p\n", r, co);
-
 	if (r == 0) {
-		// lua_getfield(L, LUA_REGISTRYINDEX, "star_co");
-		// lua_pushlightuserdata(L, (void *)co);
-		// lua_pushnil(L);
-		// lua_settable(L, -3);
-		// printf("-----------> lua_settable over\n");
-		// lua_pop(L, 1);
+		lua_getfield(L, LUA_REGISTRYINDEX, "star_co");
+		lua_pushlightuserdata(L, (void *)co);
+		lua_pushnil(L);
+		lua_settable(L, -3);
+		lua_pop(L, 1);
 	} else {
 		if (r != 1)
 			fprintf(stderr, "Error resume coroutine :%s\n", lua_tostring(co, -1));
 		lua_settop(co, 0);
 	}
-
-	// printf(">> co2 %p size:%d\n", co, lua_gettop(co));
 }
 
-void
-run_mainproc(Process *p, char *file)
-{
-	lua_State *L = p->L;
 
+void main_lua_init(lua_State *L, char *file)
+{
 	// init
 	lua_newtable(L);
 	lua_setfield(L, LUA_REGISTRYINDEX, "star_co");
+	lua_newtable(L);
+	lua_setfield(L, LUA_REGISTRYINDEX, "star_timer");
 
 	if (luaL_loadfile(L, file) != 0 ) {
 		luaL_error(L, "Load %s error: %s", file, lua_tostring(L, -1));	
@@ -81,10 +75,21 @@ run_mainproc(Process *p, char *file)
 	lua_pop(L, 1);
 	luaL_requiref(L, "star.sock", l_mode_sock, 0);
 	lua_pop(L, 1);
+	luaL_requiref(L, "star.timer", l_mode_timer, 0);
+	lua_pop(L, 1);
 
 	if (lua_pcall(L, 0, 0, 0) != 0) {
 		fprintf(stderr, "Run %s error: %s\n", file, lua_tostring(L, -1));
 	}
+}
+
+
+void
+run_mainproc(Process *p, char *file)
+{
+	lua_State *L = p->L;
+
+	main_lua_init(L, file);
 
 	bool b;
 	unsigned char type;
@@ -97,11 +102,15 @@ run_mainproc(Process *p, char *file)
 	int nunpack;
 
 	// server
-	unsigned char sock_type;
 	int fd;
 	int len_data;
 	char *ip;
 	int port;
+
+	// timer
+	int timer_id;
+	char over;
+	char lua_timer_id[9];
 
 	for (;;) {
 
@@ -119,53 +128,84 @@ run_mainproc(Process *p, char *file)
 
 				free(data);
 
-				// printf("unpack 之前 %d\n", lua_gettop(coL));
-				lua_settop(coL, 0);
+				// lua_settop(coL, 0);
 				if (sz > 0)
 					nunpack = star_unpack(coL, arg, sz);
 				else
 					nunpack = 0;
 
-				// printf("will resume %p %d  %d\n", coL, lua_gettop(coL), nunpack);
 				resume_coroutine(coL, L, nunpack);
 				break;
 			}
-			case STAR_SOCKET: {
+			case STAR_SOCK_OPEN: {
 				coL = new_coroutine(L);
-				sock_type = data[0];
-				fd = *(int *)(data+1);
-				lua_getfield(coL, LUA_REGISTRYINDEX, socket_callback[sock_type]);
-				lua_pushinteger(coL, fd);
+				fd = *(int *)(data);
+				port = *(int *)(data+SIZEINT);
+				ip = data+2*SIZEINT;
 
-				switch(sock_type)
-				{
-				case SOCKET_OPEN: {
-					//[type,fd,port,ip]
-					port = *(int *)(data+1+SIZEINT);
-					ip = data+1+2*SIZEINT;
-					lua_pushstring(coL, ip);
-					lua_pushinteger(coL, port);
-					resume_coroutine(coL, L, 3);
-					break;
-				}
-				case SOCKET_DATA: {
-					len_data = data[1+SIZEINT] * 256 + data[2+SIZEINT];
-					lua_pushlstring(coL, data+3+SIZEINT, len_data);
-					// printf("will resume sock_data %p %d\n", coL, lua_gettop(coL));
-					resume_coroutine(coL, L, 2);
-					break;
-				}
-				case SOCKET_CLOSE: {
-					resume_coroutine(coL, L, 1);
-					break;
-				}
-				default:
-					fprintf(stderr, "Invalid sock_type:%d\n", sock_type);
-					break;
-				}
+				lua_getfield(coL, LUA_REGISTRYINDEX, socket_callback[STAR_SOCK_OPEN]);
+				lua_pushinteger(coL, fd);
+				lua_pushstring(coL, ip);
+				lua_pushinteger(coL, port);
+				free(data);
+				resume_coroutine(coL, L, 3);
 				break;
 			}
+			case STAR_SOCK_DATA: {
+				//[fd, str_sz(2), str]
+				coL = new_coroutine(L);
+				fd = *(int *)(data);
+				len_data = data[SIZEINT] * 256 + data[SIZEINT+1];
 
+				lua_getfield(coL, LUA_REGISTRYINDEX, socket_callback[STAR_SOCK_DATA]);
+				lua_pushinteger(coL, fd);
+				lua_pushlstring(coL, data+2+SIZEINT, len_data);
+				free(data);
+				resume_coroutine(coL, L, 2);
+				break;
+			}
+			case STAR_SOCK_CLOSE: {
+				coL = new_coroutine(L);
+				fd = *(int *)(data);
+
+				free(data);
+				lua_getfield(coL, LUA_REGISTRYINDEX, socket_callback[STAR_SOCK_CLOSE]);
+				lua_pushinteger(coL, fd);
+				resume_coroutine(coL, L, 1);
+				break;
+			}
+			case STAR_WAKE: {
+				//[L]
+				coL = *(lua_State **)(data);
+				free(data);
+				resume_coroutine(coL, L, 0);
+				break;
+			}
+			case STAR_TIMEOUT: {
+				//[id, over]
+				timer_id = *(int *)data;
+				over = data[SIZEINT];
+
+				free(data);
+				bzero(lua_timer_id, 9);
+				sprintf(lua_timer_id, "%d", timer_id);
+
+				lua_getfield(L, LUA_REGISTRYINDEX, "star_timer");
+				lua_pushstring(L, lua_timer_id);
+				lua_gettable(L, -2);
+
+				if(lua_pcall(L, 0, 0, 0) != 0) {
+					fprintf(stderr, "timeout call error: %s\n", lua_tostring(L, -1));
+					lua_pop(L, 1);
+				}
+				if (over) {
+					lua_pushstring(L, lua_timer_id);
+					lua_pushnil(L);
+					lua_settable(L, -3);
+				}
+				lua_pop(L, 1);	// pop table(star_timer)
+				break;
+			}
 			default:
 				break;
 			}

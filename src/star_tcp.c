@@ -48,21 +48,24 @@ int handle_message(int new_fd)
 
     len = recv(new_fd, buf, MAXBUF, 0);
     if (len > 0) {
-        data = malloc(len+3+SIZEINT);
-        data[0] = SOCKET_DATA;
-        memcpy(data+1, &new_fd, SIZEINT);
-        data[1+SIZEINT] = len/256;
-        data[2+SIZEINT] = len%256;
-        memcpy(data + 1 + SIZEINT +2, buf, len);
-        qpush(MQUEUE, STAR_SOCKET, data, len+3+SIZEINT);
+
+        //[fd, str_sz(2), str]
+        data = malloc(SIZEINT + 2 + len);
+
+        memcpy(data, &new_fd, SIZEINT);
+        data[SIZEINT]     = len/256;
+        data[SIZEINT+1]   = len%256;
+        memcpy(data + SIZEINT +2, buf, len);
+        qpush(MQUEUE, STAR_SOCK_DATA, data, SIZEINT + 2 + len);
     }
     else {
         // printf("接受消息失败! 错误代码是%d, 错误信息是'%s'\n", errno, strerror(errno));
         close(new_fd);
-        data = malloc(1 + SIZEINT);
-        data[0] = SOCKET_CLOSE;
-        memcpy(data+1, &new_fd, SIZEINT);
-        qpush(MQUEUE, STAR_SOCKET, data, 1 + SIZEINT);
+
+        //[fd]
+        data = malloc(SIZEINT);
+        memcpy(data, &new_fd, SIZEINT);
+        qpush(MQUEUE, STAR_SOCK_CLOSE, data, SIZEINT);
         return -1;
     }
     return len;
@@ -72,9 +75,10 @@ int handle_message(int new_fd)
 
 void star_tcp_stop(int signo)
 {  
-    printf("star tcp stop\n");
     if (listener != 0)
         close(listener); 
+
+    printf("tcp thread exit\n");
     exit(0);  
 }  
 
@@ -157,14 +161,14 @@ star_thread_tcp(void *arg)
                     ip = inet_ntoa(their_addr.sin_addr);
                     port = ntohs(their_addr.sin_port);
 
-                    //[type,fd,port,ip]
-                    size = 1 + SIZEINT * 2 + strlen(ip) + 1;
+                    //[fd,port,ip]
+                    size = SIZEINT * 2 + strlen(ip) + 1;
                     data = malloc(size);
-                    data[0] = SOCKET_OPEN;
-                    memcpy(data+1, &new_fd, SIZEINT);
-                    memcpy(data+1+SIZEINT, &port, SIZEINT);
-                    strcpy(data+1+SIZEINT*2, ip);
-                    qpush(MQUEUE, STAR_SOCKET, data, size);
+
+                    memcpy(data, &new_fd, SIZEINT);
+                    memcpy(data+SIZEINT, &port, SIZEINT);
+                    strcpy(data+SIZEINT*2, ip);
+                    qpush(MQUEUE, STAR_SOCK_OPEN, data, size);
                     // printf("有连接来自于:%s:%d, 分配的socket为:%d\n",
                     //     inet_ntoa(their_addr.sin_addr), ntohs(their_addr.sin_port), new_fd);
                 }
