@@ -1,4 +1,4 @@
-CFLAGS = -g -O0 -Wall -Isrc -Ilib
+CFLAGS = -g -O0 -Wall -Isrc -Ilib -I/usr/local/include
 LINK = -L/usr/local/lib -llua -lm -DLUA_USE_READLINE -ldl -lpthread
 
 
