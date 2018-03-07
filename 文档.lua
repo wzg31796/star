@@ -41,6 +41,9 @@ Api:
 	3.star.version()    # 返回 Star 版本号
 
 
+	4.star.server()     #设置socket消息回调, 详见 main.lua
+
+
 	4.star.call([thread_index,] func_name, ...)
 		示例:
 			local result = star.call("add", 3, 4)
