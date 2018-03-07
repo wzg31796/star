@@ -33,7 +33,7 @@ function REQUEST:timer()
 	end)
 
 	local timer2 = timer.timeout(1000, function ( )
-		print("im timeout 2, i will start a tick after 3s")
+		print("im timeout 2, i will start a tick")
 
 		local time = 0
 		timer.timeout(3000, function ( )
