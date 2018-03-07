@@ -10,7 +10,7 @@ function REQUEST:call()
 end
 
 
--- star.xcall 测试 (next version)
+-- star.xcall 测试
 function REQUEST:xcall()
 	local a,b = star.xcall{
 		{"add", 1, 2},
