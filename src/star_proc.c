@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <assert.h>
 
 #include "star.h"
 #include "star_proc.h"
@@ -16,7 +17,6 @@ extern Star *star;
 extern int SIZEPTR;
 extern int SIZEINT;
 
-const char *socket_callback[] = {"", "socket_open", "socket_data", "socket_close"};
 
 Process *
 new_proc()
@@ -31,18 +31,17 @@ new_proc()
 
 lua_State * new_coroutine(lua_State *L)
 {
-	lua_State *l = lua_newthread(L);
 	lua_getfield(L, LUA_REGISTRYINDEX, "star_co");
-	lua_pushlightuserdata(L, (void *)l);
-	lua_pushvalue(L, -3);
+	lua_State *l = lua_newthread(L);
+	lua_pushboolean(L, 1);
 	lua_settable(L, -3);
-	lua_pop(L, 2);
+	lua_pop(L, 1);
 	return l;
 }
 
 void resume_coroutine(lua_State *co, lua_State *L, int n)
 {
-	int r = lua_resume(co, NULL, n);
+	int r = lua_resume(co, L, n);
 
 	if (r == 0) {
 		lua_getfield(L, LUA_REGISTRYINDEX, "star_co");
@@ -53,7 +52,6 @@ void resume_coroutine(lua_State *co, lua_State *L, int n)
 	} else {
 		if (r != 1)
 			fprintf(stderr, "Error resume coroutine :%s\n", lua_tostring(co, -1));
-		lua_settop(co, 0);
 	}
 }
 
@@ -112,6 +110,16 @@ run_mainproc(Process *p, char *file)
 	char over;
 	char lua_timer_id[9];
 
+	//xcall
+	char *xbuf;
+	char *wxbuf;
+	char one;
+	int nxcall;
+	int count;
+	int index;
+
+	int nresult;
+
 	for (;;) {
 
 		usleep(10);
@@ -137,13 +145,81 @@ run_mainproc(Process *p, char *file)
 				resume_coroutine(coL, L, nunpack);
 				break;
 			}
+			case STAR_XRETURN: {
+				//data->[xbuf, index ,arg, sz]         # xbuf->[one, L, n, count, arg, sz, ...]
+				xbuf = *(char **)data;
+				index = *(int *)(data + SIZEPTR);
+				arg = *(void **)(data + SIZEPTR + SIZEINT);
+				sz = *(int *)(data + SIZEPTR * 2 + SIZEINT);
+
+				free(data);
+
+				one = xbuf[0];
+				coL = *(lua_State **)(xbuf+1);
+				nxcall = *(int *)(xbuf + 1 + SIZEPTR);
+				count = *(int *)(xbuf + 1 + SIZEPTR + SIZEINT) + 1;
+
+				wxbuf = xbuf + 1 + SIZEPTR + SIZEINT*2 + (index -1)*(SIZEPTR+SIZEINT);
+
+				memcpy(wxbuf, &arg, SIZEPTR);
+				wxbuf += SIZEPTR;
+
+				memcpy(wxbuf, &sz, SIZEINT);
+
+				if (count < nxcall) {
+					memcpy(xbuf +1 + SIZEPTR + SIZEINT, &count, SIZEINT);
+				} else {
+					assert(count == nxcall);
+					wxbuf = xbuf + 1 + SIZEINT;
+					nresult = 0;
+
+					if (one) {
+						lua_newtable(coL);
+						for (int i = 0; i < count; ++i)
+						{
+							wxbuf += (SIZEPTR + SIZEINT);
+							arg = *(void **)wxbuf;
+							sz = *(int *)(wxbuf + SIZEPTR);
+							if (sz > 0)
+								nunpack = star_unpack_to_table(coL, arg, sz, nresult);
+							else
+								nunpack = 0;
+							nresult += nunpack;
+						}
+
+						free(xbuf);
+						resume_coroutine(coL, L, 1);
+					} else {
+						for (int i = 0; i < count; ++i)
+						{
+							wxbuf += (SIZEPTR + SIZEINT);
+							arg = *(void **)wxbuf;
+							sz = *(int *)(wxbuf + SIZEPTR);
+
+							// mean one func can return 5 result
+							if (i%4 == 3)
+								luaL_checkstack(L,LUA_MINSTACK,NULL);
+								
+							if (sz > 0)
+								nunpack = star_unpack(coL, arg, sz);
+							else
+								nunpack = 0;
+							nresult += nunpack;
+						}
+
+						free(xbuf);
+						resume_coroutine(coL, L, nresult);	
+					}
+				}
+				break;
+			}
 			case STAR_SOCK_OPEN: {
 				coL = new_coroutine(L);
 				fd = *(int *)(data);
 				port = *(int *)(data+SIZEINT);
 				ip = data+2*SIZEINT;
 
-				lua_getfield(coL, LUA_REGISTRYINDEX, socket_callback[STAR_SOCK_OPEN]);
+				lua_getfield(coL, LUA_REGISTRYINDEX, "socket_open");
 				lua_pushinteger(coL, fd);
 				lua_pushstring(coL, ip);
 				lua_pushinteger(coL, port);
@@ -157,10 +233,11 @@ run_mainproc(Process *p, char *file)
 				fd = *(int *)(data);
 				len_data = data[SIZEINT] * 256 + data[SIZEINT+1];
 
-				lua_getfield(coL, LUA_REGISTRYINDEX, socket_callback[STAR_SOCK_DATA]);
+				lua_getfield(coL, LUA_REGISTRYINDEX, "socket_data");
 				lua_pushinteger(coL, fd);
 				lua_pushlstring(coL, data+2+SIZEINT, len_data);
 				free(data);
+
 				resume_coroutine(coL, L, 2);
 				break;
 			}
@@ -169,7 +246,7 @@ run_mainproc(Process *p, char *file)
 				fd = *(int *)(data);
 
 				free(data);
-				lua_getfield(coL, LUA_REGISTRYINDEX, socket_callback[STAR_SOCK_CLOSE]);
+				lua_getfield(coL, LUA_REGISTRYINDEX, "socket_close");
 				lua_pushinteger(coL, fd);
 				resume_coroutine(coL, L, 1);
 				break;
@@ -194,10 +271,13 @@ run_mainproc(Process *p, char *file)
 				lua_pushstring(L, lua_timer_id);
 				lua_gettable(L, -2);
 
-				if(lua_pcall(L, 0, 0, 0) != 0) {
-					fprintf(stderr, "timeout call error: %s\n", lua_tostring(L, -1));
-					lua_pop(L, 1);
+				if (lua_type(L, -1) != LUA_TNIL) {
+					if(lua_pcall(L, 0, 0, 0) != 0) {
+						fprintf(stderr, "timeout error: %s\n", lua_tostring(L, -1));
+						lua_pop(L, 1);
+					}
 				}
+
 				if (over) {
 					lua_pushstring(L, lua_timer_id);
 					lua_pushnil(L);
@@ -238,7 +318,6 @@ l_thread(void *_arg)
 	char *ptr;
 	uint32_t size;
 
-	lua_State *coL;
 	char *cmd;
 	void *arg;
 	int sz;
@@ -252,41 +331,77 @@ l_thread(void *_arg)
 		usleep(10);
 		b = qpop(proc->queue, &type, &data, &size);
 		if (b) {
+			switch (type) {
+				case STAR_CALL: {
+					//[L, arg, sz, cmd]
+					arg = *(void **)(data+SIZEPTR);
+					sz = *(int *)(data + SIZEPTR * 2);
+					cmd = data + SIZEPTR * 2 + SIZEINT;
 
-			//[L, arg, sz, cmd]
-			coL = *(lua_State **)data;
-			arg = *(void **)(data+SIZEPTR);
-			sz = *(int *)(data + SIZEPTR * 2);
-			cmd = data + SIZEPTR * 2 + SIZEINT;
+					lua_getglobal(L, cmd);
 
-			lua_getglobal(L, cmd);
+					npack = 0;
+					if (sz > 0)
+						npack = star_unpack(L, arg, sz);
 
-			npack = 0;
-			if (sz > 0)
-				npack = star_unpack(L, arg, sz);
+					lua_call(L, npack, LUA_MULTRET);
 
-			lua_call(L, npack, LUA_MULTRET);
+					nret = lua_gettop(L);
+					if (nret > 0) {
+						star_pack(L, &arg, &sz, 0);
 
-			nret = lua_gettop(L);
-			if (nret > 0) {
-				star_pack(L, &arg, &sz, 0);
+						//[L, arg, sz]
+						size = SIZEPTR * 2 + SIZEINT;
+						data = realloc(data, size);
+						ptr = data + SIZEPTR;
 
-				//[L, arg, sz]
-				size = SIZEPTR * 2 + SIZEINT;
-				data = realloc(data, size);
-				ptr = data;
+						memcpy(ptr, &arg, SIZEPTR);
+						ptr += SIZEPTR;
 
-				memcpy(ptr, &coL, SIZEPTR);
-				ptr += SIZEPTR;
+						memcpy(ptr, &sz, SIZEINT);
+						ptr += SIZEINT;
 
-				memcpy(ptr, &arg, SIZEPTR);
-				ptr += SIZEPTR;
+						qpush(main_q, STAR_RETURN, data, size);
+						lua_pop(L, nret);
+					}
+					break;
+				}
+				case STAR_XCALL: {
+					//[xbuf, index, arg, sz, cmd]
+					arg = *(void **)(data + SIZEPTR + SIZEINT);
+					sz = *(int *)(data + SIZEPTR * 2 + SIZEINT);
+					cmd = data + SIZEPTR * 2 + SIZEINT*2;
 
-				memcpy(ptr, &sz, SIZEINT);
-				ptr += SIZEINT;
+					lua_getglobal(L, cmd);
 
-				qpush(main_q, STAR_RETURN, data, size);
-				lua_pop(L, nret);
+					npack = 0;
+					if (sz > 0)
+						npack = star_unpack(L, arg, sz);
+
+					lua_call(L, npack, LUA_MULTRET);
+
+					nret = lua_gettop(L);
+					if (nret > 0) {
+						star_pack(L, &arg, &sz, 0);
+
+						//[xbuf, index, arg, sz]
+						size = SIZEPTR * 2 + SIZEINT*2;
+						data = realloc(data, size);
+						ptr = data + SIZEPTR + SIZEINT;
+
+						memcpy(ptr, &arg, SIZEPTR);
+						ptr += SIZEPTR;
+
+						memcpy(ptr, &sz, SIZEINT);
+						ptr += SIZEINT;
+
+						qpush(main_q, STAR_XRETURN, data, size);
+						lua_pop(L, nret);
+					}
+					break;
+				}
+				default:
+					break;
 			}
 		}
 	}

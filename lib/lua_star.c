@@ -40,6 +40,90 @@ l_server(lua_State *L)
 }
 
 
+
+static int
+l_xcall(lua_State *L)
+{
+	Queue *q;
+	char *data;
+	int size;
+
+	void *arg;
+	int sz = 0;
+
+	int n;
+	char one;   // one return?
+
+	if (lua_type(L,1) == LUA_TNUMBER) {
+		one = 1;
+		n = lua_rawlen(L, 2);
+	} else {
+		one = 0;
+		n = lua_rawlen(L, 1);
+	}
+
+	//[one, L, n, count, arg, sz, ...]
+	char *xbuf = malloc(1 + SIZEPTR + SIZEINT*2 + (SIZEPTR+SIZEINT)*n);
+	char *ptr = xbuf;
+
+	xbuf[0] = one;
+	ptr += 1;
+
+	memcpy(ptr, &L, SIZEPTR);
+	ptr += SIZEPTR;
+
+	memcpy(ptr, &n, SIZEINT);
+	ptr += SIZEINT;
+
+	memcpy(ptr, &sz, SIZEINT); // count = 0;
+	ptr += SIZEINT;
+
+	const char *cmd;
+	int sub_n;
+	int index;
+	int i_task;
+
+	for (i_task = 1; i_task <=n; ++i_task)
+	{
+		// init
+		q = next_queue();
+		arg = NULL;
+		sz = 0;
+
+		lua_rawgeti(L, -1, i_task); 		// push element
+		sub_n = lua_rawlen(L, -1);
+		lua_rawgeti(L, -1, 1); 		        // element[1]   #cmd
+		cmd = lua_tostring(L, -1);
+		lua_pop(L, 1);
+
+		index = lua_gettop(L);
+
+		if (sub_n > 1) {
+			for (int i = 2; i <= sub_n; ++i)
+			{
+				lua_rawgeti(L, -1-(i-2), i);
+			}
+			star_pack(L, &arg, &sz, index);
+		}
+
+		//[xbuf, index, arg, sz, cmd]
+		size = SIZEPTR*2 + SIZEINT*2 + strlen(cmd) + 1;
+		data = malloc(size);
+		memcpy(data, 					&xbuf, 	 SIZEPTR);
+		memcpy(data+SIZEPTR,    		&i_task, SIZEINT);
+		memcpy(data+SIZEINT+SIZEPTR, 	&arg, 	 SIZEPTR);
+		memcpy(data+SIZEINT+SIZEPTR*2, 	&sz, 	 SIZEINT);
+		strcpy(data+SIZEPTR*2+SIZEINT*2, cmd);
+		qpush(q, STAR_XCALL, data, size);
+		if (one)
+			lua_settop(L, 2);
+		else
+			lua_settop(L, 1);
+	}
+	return lua_yield(L, 0);
+}
+
+
 static inline void
 star_send(lua_State *L)
 {
@@ -68,7 +152,7 @@ star_send(lua_State *L)
 		if (n > 1)
 			star_pack(L, &arg, &sz, 1);
 	}
-	
+
 
 	//[L, arg, sz, cmd]
 	uint32_t size = SIZEPTR * 2 + SIZEINT + strlen(cmd) + 1;
@@ -152,6 +236,7 @@ l_mode_core(lua_State* L)
 {
 	static const struct luaL_Reg l[] = {
 		{"server", l_server},
+		{"xcall", l_xcall},
 		{"call", l_call},
 		{"send", l_send},
 		{"sleep", l_sleep},

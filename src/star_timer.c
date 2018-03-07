@@ -308,7 +308,8 @@ star_thread_timer(void *_arg)
 	timer->thread = pthread_self();
 	timer->starttime = gettime();
 
-	uint64_t start_time;
+	uint64_t start = gettime();
+	uint64_t current;
 	uint16_t dt;
 
 	bool b;
@@ -323,7 +324,12 @@ star_thread_timer(void *_arg)
 
 	for (;;)
 	{
-		start_time = gettime();
+		current = gettime();
+		dt = current - start;
+		start = current;
+		sleep_tick(timer->sleeplist, dt);
+		timer_tick(timer->timerlist, dt);
+		
 		usleep(1000);
 		b = qpop(timer->queue, &type, &data, &size);
 		if (b) {
@@ -364,9 +370,6 @@ star_thread_timer(void *_arg)
 				break;
 			}
 		}
-		dt = gettime() - start_time;
-		sleep_tick(timer->sleeplist, dt);
-		timer_tick(timer->timerlist, dt);
 	}
 
     return NULL;

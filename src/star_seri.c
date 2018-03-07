@@ -581,6 +581,34 @@ star_unpack(lua_State *L, void *arg, int sz) {
 	return lua_gettop(L) - top;
 }
 
+int
+star_unpack_to_table(lua_State *L, void *arg, int sz, int index)
+{
+	void * buffer = arg;
+	int len = sz;
+
+	int nunpack = 0;
+
+	struct read_block rb;
+	rball_init(&rb, buffer, len);
+
+	int i;
+	for (i=0;;i++) {
+		uint8_t type = 0;
+		uint8_t *t = rb_read(&rb, sizeof(type));
+		if (t==NULL)
+			break;
+		type = *t;
+		push_value(L, &rb, type & 0x7, type>>3);
+		nunpack++;
+
+		lua_rawseti(L, 1, index + i + 1);
+	}
+
+	free(buffer);
+	return nunpack;
+}
+
 void
 star_pack(lua_State *L, void **arg, int *sz, int index) {
 	struct block temp;

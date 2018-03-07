@@ -11,13 +11,13 @@ end
 
 
 -- star.xcall 测试 (next version)
--- function REQUEST:xcall()
--- 	local a, b = star.xcall{
--- 		{"add", 1, 2},
--- 		{"add", 3, 4}
--- 	}
--- 	print("a + b =", a + b)
--- end
+function REQUEST:xcall()
+	local a,b = star.xcall{
+		{"add", 1, 2},
+		{"add", 3, 4}
+	}
+	print("a + b = ", a + b)
+end
 
 
 -- star.send 测试
@@ -36,7 +36,7 @@ function REQUEST:timer()
 		print("im timeout 2, i will start a tick")
 
 		local time = 0
-		timer.timeout(3000, function ( )
+		timer.timeout(1000, function ( )
 			time = time + 1
 			print("tick:", time)
 		end, -1)
@@ -50,8 +50,11 @@ end
 function REQUEST:test()
 	for cmd, f in pairs(REQUEST) do
 		if cmd ~= "test" then
-			star.sleep(3000)
+			print("")
+			print("test "..cmd..":")
 			f()
+			print("")
+			star.sleep(5000)
 		end
 	end
 end
@@ -74,7 +77,7 @@ star.server{
 
 		local f = REQUEST[data] if f then f() end
 		
-		print(string.format("==> client %d: %s", fd, data))
+		print(string.format("===========> client %d: %s", fd, data))
 		star.send(fd, "send2client", fd, "star:"..data.."\n")
 	end,
 

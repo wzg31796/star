@@ -4,9 +4,9 @@ Star版本:
 	0.01：base
 	0.02: add tcp suport
 	0.03: add timer suport and star.sleep api
+	0.04: add star.xcall
 	will do:
 		add udp suport
-		add star.xcall api  #并行调用多个star.call
 		...
 
 框架概述:
@@ -58,12 +58,13 @@ Api:
 			来指定一条确定的 func thread 来处理请求, 来满足特殊需求
 
 
-	6. star.xcall(taskList)
+	6. star.xcall([n,] taskList)
 		示例:
 			local a, b = star.xcall{
 				{"add", 1, 2},
 				{"add", 3, 4}
 			}
+
 		说明1: star.call的 加强版本, 我们可以将多条star.call 打包在一起, 传给star.xcall
 			
 			-- call 版本
@@ -74,7 +75,8 @@ Api:
 			star.xcall 版本则可以将请求平均分配给 多条func thread 去同时处理请求
 			从而缩短本次的计算时间(从而缩短客户端单次请求的响应时间)
 
-		说明2: 这个版本上还没有实现, (遇到了点BUG, 有能力解决的, 找我要代码 QQ:707298413)
+		说明2: 可选参数 数字n, 有时可能taskList非常长, 返回值很多的时候我们希望xcall给我们打包成一个表后返回
+			这时我们可以这样做, local result = star.xcall(1, taskList) # n:任意数字都可以, 效果是一样的 
 
 
 	7. sock.send(fd, data)
