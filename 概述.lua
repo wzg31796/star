@@ -1,8 +1,5 @@
 --[[
 
-
-
-
 Star版本:
 	0.01：base
 	0.02: add tcp suport
@@ -32,8 +29,4 @@ Star版本:
 		star 的设计，使得使用它就像 使用单线程一样简单, 只需要在 复杂算法 和 I/O 前面
 
 		加上star.call/send 就能提升性能, Now just enjoy it.
-
-		
-
-
 ]]
