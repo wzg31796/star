@@ -43,7 +43,7 @@ Star now uses lua 5.3.4
 | |                                           |    |                  +---------+      
 | |          sleep / awake  --------+         |    |
 | |                                  \        |    |  single thread   +---------+      +-- Sleep Coroutine List
-| |           (" MAIN LOOP ")         + <<--------------------------->>  Timer  +------| 
+| |           (" MAIN THREAD ")       + <<--------------------------->>  Timer  +------| 
 | |                                  /        |    |                  +---------+      +-- Timer List
 | |          timer new / cancel-----+         |    |
 | |                                           |    |  multi  thread   +---------+      +-- func1
