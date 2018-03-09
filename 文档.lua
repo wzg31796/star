@@ -5,8 +5,9 @@ Star版本:
 	0.02: add tcp suport
 	0.03: add timer suport and star.sleep api
 	0.04: add star.xcall
+	0.05: add udp suport
+
 	will do:
-		add udp suport
 		...
 
 框架概述:
@@ -87,9 +88,13 @@ Api:
 			sock.send(5, "Hi client")
 		说明:
 			发送socket数据
+			
+	
+	8. sock.udp_address(from)
+		说明: 将userdata 转换为ip和port, 详见 "main.lua"
 
 
-	8. timer.timeout(delay, callback [,iterations])
+	9. timer.timeout(delay, callback [,iterations])
 		示例:
 			local id = timer.timeout(1000, function()
 				print("timeout")
@@ -100,7 +105,7 @@ Api:
 			iterations: 可选参数, 执行次数, 默认为1, 若传入 <= 0 则为无限次数
 
 
-	9. timer.cancel(timer_id)
+	10. timer.cancel(timer_id)
 		说明:
 			取消一个定时器, timer_id 是 timer.timeout 的返回值
 

@@ -8,6 +8,7 @@ typedef struct
 	char *func;
 	
 	char *server;
+	short family;
 	char *ip;
 	int port;
 	int maxclient;

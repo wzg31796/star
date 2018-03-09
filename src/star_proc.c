@@ -45,7 +45,8 @@ void resume_coroutine(lua_State *co, lua_State *L, int n)
 
 	if (r == 0) {
 		lua_getfield(L, LUA_REGISTRYINDEX, "star_co");
-		lua_pushlightuserdata(L, (void *)co);
+		lua_pushthread(co);
+		lua_xmove(co, L, 1);
 		lua_pushnil(L);
 		lua_settable(L, -3);
 		lua_pop(L, 1);
@@ -104,6 +105,9 @@ run_mainproc(Process *p, char *file)
 	int len_data;
 	char *ip;
 	int port;
+
+	int len_from;
+	void *from;
 
 	// timer
 	int timer_id;
@@ -251,6 +255,23 @@ run_mainproc(Process *p, char *file)
 				resume_coroutine(coL, L, 1);
 				break;
 			}
+			case STAR_SOCK_UDP_DATA: {
+				//[port, ip, (buf_len 2) + buf]
+				coL = new_coroutine(L);
+				len_from = strchr(data + SIZEINT, '\0') - data + 1; // port + ip
+
+				len_data = data[len_from] * 256 + data[len_from + 1];
+
+				lua_getfield(coL, LUA_REGISTRYINDEX, "socket_data");
+
+				from = lua_newuserdata(coL, len_from);
+				memcpy(from, data, len_from);
+
+				lua_pushlstring(coL, data + len_from + 2, len_data); // data
+				free(data);
+				resume_coroutine(coL, L, 2);
+				break;
+			}
 			case STAR_WAKE: {
 				//[L]
 				coL = *(lua_State **)(data);
@@ -293,7 +314,6 @@ run_mainproc(Process *p, char *file)
 	}
 
 }
-
 
 static void *
 l_thread(void *_arg)

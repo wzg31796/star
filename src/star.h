@@ -18,28 +18,30 @@
 #include "star_proc.h"
 #include "star_timer.h"
 
-#define STAR_VERSION 0.04
+#define STAR_VERSION 0.05
 
 
 #define STAR_DEBUG 0          // none <-> none  # Used in the next version
 
-#define STAR_SOCK_OPEN 1	  // main <- tcp/udp
-#define STAR_SOCK_DATA 2	  // main <- tcp/udp
-#define STAR_SOCK_CLOSE 3	  // main <- tcp/udp
+#define STAR_SOCK_OPEN 1	  // main <- tcp
+#define STAR_SOCK_DATA 2	  // main <- tcp
+#define STAR_SOCK_CLOSE 3	  // main <- tcp
 
-#define STAR_CALL 4			  // main -> func
-#define STAR_RETURN 5		  // main <- func
+#define STAR_SOCK_UDP_DATA 4  // main <- udp
 
-#define STAR_XCALL 6		  // main -> func
-#define STAR_XRETURN 7		  // main <- func
+#define STAR_CALL 5			  // main -> func
+#define STAR_RETURN 6		  // main <- func
 
-#define STAR_SLEEP 8		  // main -> timer
-#define STAR_WAKE 9			  // main <- timer
-#define STAR_TIMER_CREATE 10  // main -> timer
-#define STAR_TIMER_CANCEL 11  // main -> timer
-#define STAR_TIMER_PAUSE 12   // main -> timer  # Used in the next version
-#define STAR_TIMER_RESUME 13  // main -> timer  # Used in the next version
-#define STAR_TIMEOUT 14		  // main <- timer
+#define STAR_XCALL 7		  // main -> func
+#define STAR_XRETURN 8		  // main <- func
+
+#define STAR_SLEEP 9		  // main -> timer
+#define STAR_WAKE 10		  // main <- timer
+#define STAR_TIMER_CREATE 11  // main -> timer
+#define STAR_TIMER_CANCEL 12  // main -> timer
+#define STAR_TIMER_PAUSE 13   // main -> timer  # Used in the next version
+#define STAR_TIMER_RESUME 14  // main -> timer  # Used in the next version
+#define STAR_TIMEOUT 15		  // main <- timer
 
 
 

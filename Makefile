@@ -9,6 +9,7 @@ STAR = \
 	star_conf.c \
 	star_proc.c \
 	star_tcp.c \
+	star_udp.c \
 	star_timer.c \
 
 LUALIB = \

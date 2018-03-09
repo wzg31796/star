@@ -60,7 +60,7 @@ function REQUEST:test()
 end
 
 
--- 设置 sock 回调
+-- 设置 sock 回调 (TCP)
 star.server{
 
 	open = function (fd, ip, port)
@@ -87,9 +87,33 @@ star.server{
 	end
 }
 
+-- UDP
+--[[
+star.server{
+
+	data = function (from, data)
+
+		if data:sub(#data, #data) == "\n" then
+			data = data:sub(1, #data-1)
+		end
+
+		local ip, port = sock.udp_address(from)
+		(string.format("===========> udp data: %s from '%s:%d'", data, ip, port))
+
+		sock.send(from, 'Star:'..data.."\n")
+	end
+}
+]]
 
 --[[
+	启动: ./star conf.lua
+
 	Test:
 		用客户端连接服务器 (In linux, use nc 127.0.0.1 8888)
 		输入 test 并发送   (其他客户端, 你需要发送的字符串为 'test\n')
+
+	Test2:
+		将"conf.lua" 中的server改成 "udp", 打开上面 star.server (UDP)的注释并重新运行
+		use nc -u 127.0.0.1 8888 连接, 并输入些什么
+
 ]]

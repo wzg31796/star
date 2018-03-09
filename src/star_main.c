@@ -1,5 +1,7 @@
+#include <sys/socket.h>
 #include "star.h"
 #include "star_tcp.h"
+#include "star_udp.h"
 
 Star *star;
 
@@ -118,6 +120,11 @@ read_conf(const char *file, Conf *conf)
 	read_conf_int(L, "port", 		&conf->port);
 	read_conf_int(L, "maxclient", 	&conf->maxclient);
 
+	if (strchr(conf->server, '6'))
+		conf->family = AF_INET6;
+	else
+		conf->family = AF_INET;
+
 	lua_close(L);
 }
 
@@ -126,7 +133,11 @@ void
 star_run()
 {
 	timer_thread_run(star->timer);
-	tcp_thread_run();
+
+	if (strchr(star->conf->server, 't')) // tcp or tcp6
+		tcp_thread_run();
+	else // udp or udp6
+		udp_thread_run();
 
 	for (int i = 0; i < star->n; ++i)
 	{
@@ -161,7 +172,7 @@ int
 main(int argc, char const *argv[])
 {
 	if (argc != 2) {
-		fprintf(stderr, "usage: star main.lua\n");
+		fprintf(stderr, "usage: star conf.lua\n");
 		return 1;
 	}
 

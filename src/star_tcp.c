@@ -113,7 +113,7 @@ star_thread_tcp(void *arg)
 
     setnonblocking(listener);
     bzero(&my_addr, sizeof(my_addr));
-    my_addr.sin_family = PF_INET;
+    my_addr.sin_family = star->conf->family;
     my_addr.sin_port = htons(star->conf->port);
     my_addr.sin_addr.s_addr = inet_addr(star->conf->ip);
     if (bind(listener, (struct sockaddr *)&my_addr, sizeof(struct sockaddr)) == -1) {

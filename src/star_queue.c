@@ -14,13 +14,6 @@
 #define EMPTY 0
 #define FILLED 1
 
-// struct _message{
-// 	_Atomic char flag;		// 0 mean empty, 1 mean has data
-// 	int sz;
-// 	lua_State *L;
-// 	char *cmd;
-// 	void *arg;
-// };
 
 struct _message
 {
