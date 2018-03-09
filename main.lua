@@ -88,22 +88,22 @@ star.server{
 }
 
 -- UDP
---[[
-star.server{
 
-	data = function (from, data)
+-- star.server{
 
-		if data:sub(#data, #data) == "\n" then
-			data = data:sub(1, #data-1)
-		end
+-- 	data = function (from, data)
 
-		local ip, port = sock.udp_address(from)
-		(string.format("===========> udp data: %s from '%s:%d'", data, ip, port))
+-- 		if data:sub(#data, #data) == "\n" then
+-- 			data = data:sub(1, #data-1)
+-- 		end
 
-		sock.send(from, 'Star:'..data.."\n")
-	end
-}
-]]
+-- 		local ip, port = sock.udp_address(from)
+
+-- 		print(string.format("===========> sock(udp) data: %s from '%s:%d'", data, ip, port))
+
+-- 		sock.send(from, 'Star:'..data.."\n")
+-- 	end
+-- }
 
 --[[
 	启动: ./star conf.lua
