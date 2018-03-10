@@ -11,7 +11,7 @@ extern int udp_listener;
 
 
 
-static int
+static void
 tcp_send(lua_State *L)
 {
 	int fd, r;
@@ -24,11 +24,10 @@ tcp_send(lua_State *L)
 	r = send(fd, data, (int)sz, 0);
 
 	lua_pushinteger(L, r);
-	return 1;
 }
 
 
-static int
+static void
 udp_send(lua_State *L)
 {
 	int r;
@@ -50,7 +49,7 @@ udp_send(lua_State *L)
 	si_other.sin_port 		  = htons(port);
 
 	r = sendto(udp_listener, data, sz, 0, (struct sockaddr*) &si_other, sizeof(si_other));
-	return r;
+	lua_pushinteger(L, r);
 }
 
 
@@ -59,11 +58,11 @@ l_send(lua_State *L)
 {
 	int r;
 	if (lua_type(L, 1) == LUA_TNUMBER)
-		r = tcp_send(L);
+		tcp_send(L);
 	else
-		r = udp_send(L);
+		udp_send(L);
 
-	return r;
+	return 1;
 }
 
 
