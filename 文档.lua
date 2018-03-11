@@ -8,18 +8,19 @@ Star版本:
 	0.05: add udp suport
 
 	will do:
+		add rpc support
 		...
 
 框架概述:
 	Self introduction:
 
-		star 包含一个main线程, 和多个func线程 (里面的函数 必须是全局的, 无副作用的), 
+		star 包含一个main线程, 和多个func线程 (里面的函数 必须是全局的), 
 
 		全部数据,和大部分逻辑都在 main 线程里执行
 		
 		当有比较耗时的算法, 或者IO, 我们可以选择放到 func线程里执行
 
-		经过LUA协程包装，跨线程调用和调用一个普通函数没什么区别(回调一边玩去 ^_^)
+		经过LUA协程包装，跨线程调用和调用一个普通函数没什么区别.
 
 	Why do it:
 	
@@ -29,7 +30,7 @@ Star版本:
 
 		star 的设计，使得使用它就像 使用单线程一样简单, 只需要在 复杂算法 和 I/O 前面
 
-		加上star.call/send 就能提升性能, Now just enjoy it.
+		加上star.call/send 就能提升性能.
 
 
 Api:
