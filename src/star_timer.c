@@ -150,6 +150,7 @@ timer_list_remove(TimerList *list, int id)
 				list->tail = previous;
 
 			free(node);
+			break;
 		} else {
 			previous = node;
 			node = node->next;
